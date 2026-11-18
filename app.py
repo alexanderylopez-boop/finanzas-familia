@@ -3,7 +3,6 @@ import pandas as pd
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
-# --- Configuración de la página ---
 st.set_page_config(page_title="Finanzas Alexander & Mariana", page_icon="🏠", layout="wide")
 
 # --- Estilos CSS (Colores y Diseño) ---
@@ -56,7 +55,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Utilidades ---
 def fmt(n):
     if pd.isna(n) or n == 0: return "$0"
     return f"${n:,.0f}".replace(",", ".")
@@ -67,7 +65,7 @@ ingresos_data = {
         "Sueldo líquido": 1746582,
         "Sobresueldo": 0,
         "Trimestral": 0,
-        "Asesorías": 500000, # Agregado
+        "Asesorías": 500000, 
         "Otro": 0
     },
     "Mariana": {
@@ -86,7 +84,6 @@ compromisos = {
     "Servicios y Gastos Fijos": 450000
 }
 
-# --- Título ---
 st.title("🏠 Panel de Finanzas del Hogar de Alexander y Mariana")
 st.write("Bienvenido. Aquí tienes el resumen de tu mes financiero.")
 
@@ -96,25 +93,24 @@ nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
 
 col_mes, _ = st.columns([1, 2])
 with col_mes:
-    # Función para mostrar "Noviembre 2026"
     def formato_mes(d):
         return f"{nombres_meses[d.month-1]} {d.year}"
     
+    # Por defecto selecciona Noviembre 2026 (índice 22)
     mes_sel = st.selectbox("Selecciona el mes para trabajar (ciclo del 19 al 18)", options=meses, index=22, format_func=formato_mes)
 
-# Cálculo del período real 19 al 18
-inicio = mes_sel
-fin = inicio + relativedelta(months=1) - timedelta(days=1)
+# CORRECCIÓN DEL CICLO: Forzamos a que empiece el 19 y termine el 18 del mes siguiente
+inicio = mes_sel.replace(day=19) 
+fin = (inicio + relativedelta(months=1)).replace(day=18)
+
 st.info(f"📅 **Ciclo actual de trabajo:** {inicio.strftime('%d/%m/%Y')} al {fin.strftime('%d/%m/%Y')}")
 
 st.divider()
 
 # --- 1. Ingresos del Mes ---
 st.header("💵 Ingresos del Mes")
-
 col_ing_1, col_ing_2 = st.columns(2)
 
-# Tarjeta Alexander
 with col_ing_1:
     total_alex = sum(ingresos_data["Alexander"].values())
     html_alex = '<div class="custom-card card-alexander">'
@@ -125,7 +121,6 @@ with col_ing_1:
     html_alex += '</div>'
     st.markdown(html_alex, unsafe_allow_html=True)
 
-# Tarjeta Mariana
 with col_ing_2:
     total_mar = sum(ingresos_data["Mariana"].values())
     html_mar = '<div class="custom-card card-mariana">'
@@ -153,7 +148,6 @@ st.header("📌 Compromisos Pendientes")
 st.write("Gastos comprometidos para este ciclo:")
 
 total_compromisos = sum(compromisos.values())
-
 html_comp = '<div class="custom-card card-neutral">'
 for concepto, monto in compromisos.items():
     html_comp += f'<div class="data-row"><span class="data-label">{concepto}</span><span class="data-value" style="color: #dc2626;">{fmt(monto)}</span></div>'
@@ -184,7 +178,7 @@ with col_libre_2:
     st.markdown(f"""
     <div class="custom-card card-neutral">
         <div class="card-title">Próximo paso</div>
-        <p style="font-size: 14px; color: #4b5563;">En la próxima actualización, aquí verás el saldo exacto para <b>Alexander</b> y <b>Mariana</b>, aplicando las reglas de reparto.</p>
+        <p style="font-size: 14px; color: #4b5563;">En la próxima actualización, aquí verás el saldo exacto para <b>Alexander</b> y para <b>Mariana</b>, aplicando las reglas de reparto.</p>
     </div>
     """, unsafe_allow_html=True)
 
