@@ -10,7 +10,6 @@ st.markdown("""
     <style>
     .stApp { background-color: #f8f9fa; }
     
-    /* Contenedor general de tarjetas */
     .custom-card {
         padding: 20px;
         border-radius: 12px;
@@ -18,12 +17,16 @@ st.markdown("""
         margin-bottom: 20px;
     }
     
-    /* Colores específicos */
-    .card-alexander { background-color: #e0f2fe; border-top: 5px solid #38bdf8; } /* Celeste suave */
-    .card-mariana { background-color: #ffe4e6; border-top: 5px solid #fb7185; }   /* Rosado suave */
+    .card-alexander { background-color: #e0f2fe; border-top: 5px solid #38bdf8; } 
+    .card-mariana { background-color: #ffe4e6; border-top: 5px solid #fb7185; }   
     .card-neutral { background-color: #ffffff; border-top: 5px solid #cbd5e1; }
     
-    /* Títulos y textos */
+    .card-libre { 
+        background-color: #f0fdf4; 
+        border-left: 5px solid #16a34a;
+        border-top: none;
+    }
+    
     .card-title {
         color: #1f2937;
         font-size: 18px;
@@ -52,6 +55,14 @@ st.markdown("""
     }
     .total-alexander { color: #0369a1; }
     .total-mariana { color: #be123c; }
+    
+    /* Estilo especial para el número de libre disposición */
+    .libre-value {
+        font-size: 28px; 
+        font-weight: bold; 
+        color: #15803d;
+        margin-bottom: 5px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -72,7 +83,7 @@ ingresos_data = {
         "Sueldo líquido": 1958386,
         "Sobresueldo": 0,
         "Trimestral": 0,
-        "Asesorías": 0,
+        "Asesorías": 500000, # Corregido: devuelto a su lugar
         "Otro": 0
     }
 }
@@ -96,10 +107,9 @@ with col_mes:
     def formato_mes(d):
         return f"{nombres_meses[d.month-1]} {d.year}"
     
-    # Por defecto selecciona Noviembre 2026 (índice 22)
     mes_sel = st.selectbox("Selecciona el mes para trabajar (ciclo del 19 al 18)", options=meses, index=22, format_func=formato_mes)
 
-# CORRECCIÓN DEL CICLO: Forzamos a que empiece el 19 y termine el 18 del mes siguiente
+# Forzar ciclo del 19 al 18
 inicio = mes_sel.replace(day=19) 
 fin = (inicio + relativedelta(months=1)).replace(day=18)
 
@@ -161,26 +171,28 @@ st.divider()
 st.header("💸 Saldo de Libre Disposición")
 st.write("Es lo que queda después de cubrir todos los compromisos del mes.")
 
-plata_libre = (total_alex + total_mar) - total_compromisos
+plata_libre_total = (total_alex + total_mar) - total_compromisos
+# Dividimos el sobrante 50/50 (puedes cambiar esta regla luego)
+libre_alex = plata_libre_total // 2
+libre_mar = plata_libre_total - libre_alex
 
 col_libre_1, col_libre_2 = st.columns(2)
 
 with col_libre_1:
     st.markdown(f"""
-    <div class="custom-card" style="border-left: 5px solid #16a34a; background-color: #f0fdf4;">
-        <div class="card-title" style="border-bottom: none; color: #166534;">Disponible Total</div>
-        <div style="font-size: 28px; font-weight: bold; color: #15803d;">{fmt(plata_libre)}</div>
-        <p style="font-size: 12px; color: #4b5563; margin-top: 10px;">Monto total sobrante para el hogar.</p>
+    <div class="custom-card card-libre">
+        <div class="card-title" style="color: #166534;">Disponible Total de Alexander</div>
+        <div class="libre-value">{fmt(libre_alex)}</div>
     </div>
     """, unsafe_allow_html=True)
 
 with col_libre_2:
     st.markdown(f"""
-    <div class="custom-card card-neutral">
-        <div class="card-title">Próximo paso</div>
-        <p style="font-size: 14px; color: #4b5563;">En la próxima actualización, aquí verás el saldo exacto para <b>Alexander</b> y para <b>Mariana</b>, aplicando las reglas de reparto.</p>
+    <div class="custom-card card-libre">
+        <div class="card-title" style="color: #166534;">Disponible Total de Mariana</div>
+        <div class="libre-value">{fmt(libre_mar)}</div>
     </div>
     """, unsafe_allow_html=True)
 
-if plata_libre <= 0:
+if plata_libre_total <= 0:
     st.error("⚠️ Alerta: Los compromisos de este mes superan los ingresos totales del hogar.")
