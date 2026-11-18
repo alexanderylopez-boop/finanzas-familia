@@ -126,7 +126,7 @@ col1, col2, col3 = st.columns([1,2,1])
 with col2:
     meses = pd.date_range("2025-01-19", "2027-12-19", freq="MS").date
     mes_sel = st.selectbox("Mes financiero (inicio el 19)", options=meses,
-                           index=len(meses)-1, format_func=lambda d: nombre_mes(d))
+                           index=22, format_func=lambda d: nombre_mes(d))
 inicio = mes_sel
 fin = inicio + relativedelta(months=1) - timedelta(days=1)
 st.caption(f"Período: **{inicio.strftime('%d/%m/%Y')}** → **{fin.strftime('%d/%m/%Y')}**")
