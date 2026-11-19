@@ -27,12 +27,11 @@ def fmt(n):
     if pd.isna(n) or n == 0: return "$0"
     return f"${n:,.0f}".replace(",", ".")
 
-# --- 1. MEMORIA DE DATOS (Inicialización) ---
+# --- 1. MEMORIA DE DATOS ---
 if 'datos_ingresos' not in st.session_state:
     st.session_state.datos_ingresos = {}
 
 if 'datos_cuentas' not in st.session_state:
-    # CORRECCIÓN DE ESTRUCTURA: Datos de cuentas indexados directamente por persona
     st.session_state.datos_cuentas = {
         "Alexander": {
             "BCI": {
@@ -68,30 +67,47 @@ if 'datos_cuentas' not in st.session_state:
         }
     }
 
-# Memoria del mes: Guardamos la fecha exacta (año y mes) en lugar de solo un índice
 if 'mes_actual' not in st.session_state:
-    st.session_state.mes_actual = date(2026, 11, 19) # Noviembre 2026 por defecto
+    st.session_state.mes_actual = date(2026, 11, 19) 
 
 # --- INTERFAZ GRÁFICA ---
-st.title("🏠 Panel de Finanzas del Hogar")
+st.title("🏠 Panel de Finanzas del Hogar de Alexander y Mariana")
 
-# --- NUEVO SELECTOR DE MES POR BOTONES ---
-col_btn1, col_txt, col_btn2 = st.columns([1, 3, 1])
+# --- SELECTOR DE MES (Botones + Selector Rápido) ---
+meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+
+col_btn1, col_select, col_btn2 = st.columns([1, 2, 1])
 
 with col_btn1:
     if st.button("◀ Mes Anterior"):
-        # Restamos un mes a la fecha guardada
         st.session_state.mes_actual = st.session_state.mes_actual - relativedelta(months=1)
         st.rerun()
 
-with col_txt:
-    meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-    nombre_mes_actual = f"{meses[st.session_state.mes_actual.month-1]} {st.session_state.mes_actual.year}"
-    st.markdown(f"<h3 style='text-align: center; margin-top: 0;'>{nombre_mes_actual}</h3>", unsafe_allow_html=True)
+with col_select:
+    # Generamos la lista de todos los meses disponibles (2025 a 2027)
+    todas_las_fechas = pd.date_range("2025-01-19", "2027-12-19", freq="MS").date
+    opciones_texto = [f"{meses[d.month-1]} {d.year}" for d in todas_las_fechas]
+    
+    # Encontramos el índice del mes actual para mostrarlo por defecto
+    idx_actual = -1
+    for i, d in enumerate(todas_las_fechas):
+        if d.year == st.session_state.mes_actual.year and d.month == st.session_state.mes_actual.month:
+            idx_actual = i
+            break
+            
+    mes_seleccionado = st.selectbox(
+        "Ir a un mes específico:", 
+        options=todas_las_fechas, 
+        index=idx_actual,
+        format_func=lambda d: f"{meses[d.month-1]} {d.year}",
+        label_visibility="collapsed"
+    )
+    if mes_seleccionado != st.session_state.mes_actual:
+        st.session_state.mes_actual = mes_seleccionado
+        st.rerun()
 
 with col_btn2:
     if st.button("Mes Siguiente ▶"):
-        # Sumamos un mes a la fecha guardada
         st.session_state.mes_actual = st.session_state.mes_actual + relativedelta(months=1)
         st.rerun()
 
@@ -99,7 +115,6 @@ inicio = st.session_state.mes_actual.replace(day=19)
 fin = (inicio + relativedelta(months=1)).replace(day=18)
 st.info(f"📅 **Ciclo actual de trabajo:** {inicio.strftime('%d/%m/%Y')} al {fin.strftime('%d/%m/%Y')}")
 
-# Creamos una "llave" única para este mes (ej. "2026-11")
 mes_key = inicio.strftime("%Y-%m")
 
 if mes_key not in st.session_state.datos_ingresos:
@@ -114,10 +129,10 @@ compromisos = {"Dividendos Propiedades": 1208288, "Colegios y Niños": 543000, "
 tab1, tab2 = st.tabs(["📊 Resumen (Hoja 1)", "🏦 Cuentas y Bolsillos (Hoja 2)"])
 
 # ==========================================
-# PESTAÑA 1: HOJA 1 (RESUMEN)
+# PESTAÑA 1: HOJA 1
 # ==========================================
 with tab1:
-    with st.expander(f"✏️ Modificar Ingresos de {nombre_mes_actual}", expanded=False):
+    with st.expander(f"✏️ Modificar Ingresos de {meses[inicio.month-1]} {inicio.year}", expanded=False):
         with st.form("form_ingresos"):
             col_f1, col_f2 = st.columns(2)
             
@@ -219,14 +234,13 @@ with tab1:
 # ==========================================
 with tab2:
     st.header("🏦 Bancos, Cuentas y Bolsillos")
-    st.write("Haz clic en un banco para ver sus cuentas y bolsillos, y editar sus saldos.")
+    st.write("Haz clic en un banco para ver sus cuentas y bolsillos. Si deseas modificar los saldos, usa la opción de edición.")
 
     col_bancos_1, col_bancos_2 = st.columns(2)
 
     def render_por_banco(persona, columna):
         with columna:
             st.subheader(f"Bancos de {persona}")
-            # CORRECCIÓN AQUÍ: Buscamos directamente en la llave de la persona
             bancos_persona = st.session_state.datos_cuentas[persona]
             
             for banco_nombre, cuentas in bancos_persona.items():
@@ -234,6 +248,7 @@ with tab2:
                 for bolsillos in cuentas.values():
                     total_banco += sum(bolsillos.values())
                 
+                # Mostramos el banco con sus cuentas y bolsillos
                 with st.expander(f"🏦 **{banco_nombre}** (Total: {fmt(total_banco)})", expanded=False):
                     for cuenta_nombre, bolsillos in cuentas.items():
                         st.markdown(f"**{cuenta_nombre}**")
@@ -241,20 +256,21 @@ with tab2:
                             st.markdown(f"<div class='data-row'><span class='data-label'>↳ {b_nombre}</span><span class='data-value'>{fmt(b_monto)}</span></div>", unsafe_allow_html=True)
                     
                     st.divider()
-                    # Formulario de edición dinámico para este banco
-                    with st.form(f"form_edit_{persona}_{banco_nombre}"):
-                        st.write(f"**Editar saldos de {banco_nombre}**")
-                        nuevos_valores = {}
-                        for cuenta_nombre, bolsillos in cuentas.items():
-                            for b_nombre, b_monto in bolsillos.items():
-                                nuevo_monto = st.number_input(f"{cuenta_nombre} - {b_nombre}", value=b_monto, step=1000, key=f"input_{persona}_{banco_nombre}_{cuenta_nombre}_{b_nombre}")
-                                nuevos_valores[(cuenta_nombre, b_nombre)] = nuevo_monto
-                        
-                        if st.form_submit_button("💾 Guardar Saldos de este Banco"):
-                            for (cuenta_nombre, b_nombre), nuevo_monto in nuevos_valores.items():
-                                st.session_state.datos_cuentas[persona][banco_nombre][cuenta_nombre][b_nombre] = nuevo_monto
-                            st.success(f"Saldos de {banco_nombre} actualizados.")
-                            st.rerun()
+                    
+                    # SECCIÓN DE EDICIÓN OCULTA (Solo se abre si el usuario lo pide)
+                    with st.expander(f"✏️ Editar saldos de {banco_nombre}"):
+                        with st.form(f"form_edit_{persona}_{banco_nombre}"):
+                            nuevos_valores = {}
+                            for cuenta_nombre, bolsillos in cuentas.items():
+                                for b_nombre, b_monto in bolsillos.items():
+                                    nuevo_monto = st.number_input(f"{cuenta_nombre} - {b_nombre}", value=b_monto, step=1000, key=f"input_{persona}_{banco_nombre}_{cuenta_nombre}_{b_nombre}")
+                                    nuevos_valores[(cuenta_nombre, b_nombre)] = nuevo_monto
+                            
+                            if st.form_submit_button("💾 Guardar Saldos de este Banco"):
+                                for (cuenta_nombre, b_nombre), nuevo_monto in nuevos_valores.items():
+                                    st.session_state.datos_cuentas[persona][banco_nombre][cuenta_nombre][b_nombre] = nuevo_monto
+                                st.success(f"Saldos de {banco_nombre} actualizados.")
+                                st.rerun()
 
     render_por_banco("Alexander", col_bancos_1)
     render_por_banco("Mariana", col_bancos_2)
