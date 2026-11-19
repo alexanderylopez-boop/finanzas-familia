@@ -28,52 +28,66 @@ def fmt(n):
     return f"${n:,.0f}".replace(",", ".")
 
 # --- 1. MEMORIA DE DATOS POR MES (Session State) ---
-# Estructura: {'2026-11': {'Alexander': {'sueldo': 100, 'asesoria': 50, ...}, 'Mariana': {...}}}
 if 'datos_ingresos' not in st.session_state:
     st.session_state.datos_ingresos = {}
 
+# Base de datos de cuentas y bolsillos (Estructura completa)
 if 'datos_cuentas' not in st.session_state:
-    # Datos iniciales por defecto (los que tenías en tu Excel)
     st.session_state.datos_cuentas = {
-        "BCI - Alexander": {
-            "Bolsillos": {"Saldo sin asignar": 1746582, "Compras grandes familiares": 1000000, "Garantía Los Diamelos": 920000, "Fondo propio Los Diamelos": 867572}
+        "Alexander": {
+            "BCI": {
+                "Cta. Cte.": {"Saldo sin asignar": 1746582, "Compras grandes familiares": 1000000, "Garantía Los Diamelos": 920000, "Fondo propio Los Diamelos": 867572}
+            },
+            "BancoEstado": {
+                "Cta. Cte.": {"Fondo común Casa 716 / Filipo": 305000, "Reserva dividendo Casa 716": 400000},
+                "Cuenta RUT": {"Primer respaldo de Alexander": 250000},
+                "Cuenta Vista": {"Segundo respaldo de Alexander": 500000},
+                "Ahorro Premium": {"Ahorro personal Premium": 3143103}
+            },
+            "Scotiabank": {
+                "Cta. Cte.": {"Fondo de combustible": 75325, "Reserva para generador": 550000},
+                "Ahorro CLP": {"Vacaciones en Chile": 50161}
+            },
+            "Falabella": {
+                "Cta. Cte.": {"Libre disposición de Alexander": 183550}
+            }
         },
-        "BancoEstado - Alexander": {
-            "Cta. Cte.": {"Fondo común Casa 716 / Filipo": 305000, "Reserva dividendo Casa 716": 400000},
-            "Cuenta RUT": {"Primer respaldo de Alexander": 250000},
-            "Cuenta Vista": {"Segundo respaldo de Alexander": 500000},
-            "Ahorro Premium": {"Ahorro personal Premium": 3143103}
-        },
-        "Scotiabank - Alexander": {
-            "Cta. Cte.": {"Fondo de combustible": 75325, "Reserva para generador": 550000},
-            "Ahorro CLP": {"Vacaciones en Chile": 50161}
-        },
-        "Falabella - Alexander": {
-            "Cta. Cte.": {"Libre disposición de Alexander": 183550}
-        },
-        "Itaú - Mariana": {
-            "Cta. Cte.": {"Saldo sin asignar": 1958386, "Fondo Capellán y reparaciones": 0}
-        },
-        "BancoEstado - Mariana": {
-            "Cta. Cte.": {"Presupuesto mensual de hogar": 0},
-            "Cuenta RUT": {"Primer respaldo de Mariana": 19052},
-            "Ahorro Giro Diferido": {"Segundo respaldo de Mariana": 22},
-            "Fondo Mutuo": {"Ahorro para estudios de los niños": 5175257}
-        },
-        "Falabella - Mariana": {
-            "Cta. Cte.": {"Libre disposición de Mariana": 80}
+        "Mariana": {
+            "Itaú": {
+                "Cta. Cte.": {"Saldo sin asignar": 1958386, "Fondo Capellán y reparaciones": 0}
+            },
+            "BancoEstado": {
+                "Cta. Cte.": {"Presupuesto mensual de hogar": 0},
+                "Cuenta RUT": {"Primer respaldo de Mariana": 19052},
+                "Ahorro Giro Diferido": {"Segundo respaldo de Mariana": 22},
+                "Fondo Mutuo": {"Ahorro para estudios de los niños": 5175257}
+            },
+            "Falabella": {
+                "Cta. Cte.": {"Libre disposición de Mariana": 80}
+            }
         }
     }
+
+# Memoria del último mes usado (por defecto Noviembre 2026)
+if 'ultimo_mes_index' not in st.session_state:
+    st.session_state.ultimo_mes_index = 22 
 
 # --- INTERFAZ GRÁFICA ---
 st.title("🏠 Panel de Finanzas del Hogar")
 
-# Selector de mes
+# Selector de mes con memoria
 meses = pd.date_range("2025-01-19", "2027-12-19", freq="MS").date
 nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
 col_mes, _ = st.columns([1, 2])
 with col_mes:
-    mes_sel = st.selectbox("Selecciona el mes", options=meses, index=22, format_func=lambda d: f"{nombres_meses[d.month-1]} {d.year}")
+    mes_sel = st.selectbox(
+        "Selecciona el mes", 
+        options=meses, 
+        index=st.session_state.ultimo_mes_index, 
+        format_func=lambda d: f"{nombres_meses[d.month-1]} {d.year}"
+    )
+    # Guardamos el índice seleccionado para la próxima vez
+    st.session_state.ultimo_mes_index = meses.index(mes_sel)
 
 inicio = mes_sel.replace(day=19) 
 fin = (inicio + relativedelta(months=1)).replace(day=18)
@@ -98,7 +112,6 @@ tab1, tab2 = st.tabs(["📊 Resumen (Hoja 1)", "🏦 Cuentas y Bolsillos (Hoja 2
 # PESTAÑA 1: HOJA 1 (RESUMEN)
 # ==========================================
 with tab1:
-    # --- FORMULARIO DE INGRESO MANUAL ---
     with st.expander(f"✏️ Modificar Ingresos de {nombres_meses[inicio.month-1]} {inicio.year}", expanded=False):
         with st.form("form_ingresos"):
             col_f1, col_f2 = st.columns(2)
@@ -128,7 +141,6 @@ with tab1:
                 st.session_state.datos_ingresos[mes_key]["Mariana"] = {"Sueldo líquido": sueldo_m, "Sobresueldo": sobre_m, "Trimestral": trim_m, "Asesorías": ases_m, "Otro": otro_m}
                 st.success("¡Datos guardados para este mes!")
 
-    # --- VISUALIZACIÓN DE INGRESOS ---
     st.header("💵 Ingresos del Mes")
     col_ing_1, col_ing_2 = st.columns(2)
 
@@ -165,7 +177,6 @@ with tab1:
 
     st.divider()
 
-    # --- COMPROMISOS ---
     st.header("📌 Compromisos Pendientes")
     total_compromisos = sum(compromisos.values())
     html_comp = '<div class="custom-card" style="background-color: #ffffff; border-top: 5px solid #cbd5e1;">'
@@ -177,7 +188,6 @@ with tab1:
 
     st.divider()
 
-    # --- LIBRE DISPOSICIÓN ---
     st.header("💸 Saldo de Libre Disposición")
     plata_libre_total = (total_alex + total_mar) - total_compromisos
     libre_alex = plata_libre_total // 2
@@ -204,45 +214,44 @@ with tab1:
 # ==========================================
 with tab2:
     st.header("🏦 Bancos, Cuentas y Bolsillos")
-    
-    # --- FORMULARIO PARA ACTUALIZAR SALDOS ---
-    with st.expander("✏️ Actualizar Saldos de Cuentas y Bolsillos", expanded=False):
-        st.write("Modifica los montos si es necesario y presiona Guardar.")
-        with st.form("form_saldos"):
-            # Para simplificar, mostraremos solo algunos campos de ejemplo.
-            # En una versión futura esto se genera automáticamente para cada bolsillo.
-            nuevo_bci_compras = st.number_input("BCI - Compras grandes familiares", value=st.session_state.datos_cuentas["BCI - Alexander"]["Bolsillos"]["Compras grandes familiares"], step=10000)
-            nuevo_bci_garantia = st.number_input("BCI - Garantía Los Diamelos", value=st.session_state.datos_cuentas["BCI - Alexander"]["Bolsillos"]["Garantía Los Diamelos"], step=10000)
-            
-            boton_saldos = st.form_submit_button("💾 Guardar Saldos")
-            if boton_saldos:
-                st.session_state.datos_cuentas["BCI - Alexander"]["Bolsillos"]["Compras grandes familiares"] = nuevo_bci_compras
-                st.session_state.datos_cuentas["BCI - Alexander"]["Bolsillos"]["Garantía Los Diamelos"] = nuevo_bci_garantia
-                st.success("Saldos actualizados.")
+    st.write("Haz clic en un banco para ver sus cuentas y bolsillos, y editar sus saldos.")
 
-    # --- VISUALIZACIÓN AGRUPADA POR BANCO ---
     col_bancos_1, col_bancos_2 = st.columns(2)
 
     def render_por_banco(persona, columna):
         with columna:
             st.subheader(f"Bancos de {persona}")
-            # Filtramos las cuentas que pertenecen a esta persona
-            bancos_persona = {k: v for k, v in st.session_state.datos_cuentas.items() if persona in k}
+            bancos_persona = st.session_state.datos_cuentas[persona]
             
-            # Iteramos por cada banco
             for banco_nombre, cuentas in bancos_persona.items():
-                # Calculamos el total de todo el banco
+                # Calculamos el total del banco
                 total_banco = 0
                 for bolsillos in cuentas.values():
                     total_banco += sum(bolsillos.values())
                 
                 with st.expander(f"🏦 **{banco_nombre}** (Total: {fmt(total_banco)})", expanded=False):
-                    # Dentro del banco, mostramos cada cuenta
+                    # Mostramos las cuentas y sus bolsillos
                     for cuenta_nombre, bolsillos in cuentas.items():
                         st.markdown(f"**{cuenta_nombre}**")
                         for b_nombre, b_monto in bolsillos.items():
                             st.markdown(f"<div class='data-row'><span class='data-label'>↳ {b_nombre}</span><span class='data-value'>{fmt(b_monto)}</span></div>", unsafe_allow_html=True)
-                        st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+                    
+                    st.divider()
+                    # Formulario de edición dinámico para este banco
+                    with st.form(f"form_edit_{persona}_{banco_nombre}"):
+                        st.write(f"**Editar saldos de {banco_nombre}**")
+                        nuevos_valores = {}
+                        for cuenta_nombre, bolsillos in cuentas.items():
+                            for b_nombre, b_monto in bolsillos.items():
+                                # Creamos un campo de entrada por cada bolsillo
+                                nuevo_monto = st.number_input(f"{cuenta_nombre} - {b_nombre}", value=b_monto, step=1000, key=f"input_{persona}_{banco_nombre}_{cuenta_nombre}_{b_nombre}")
+                                nuevos_valores[(cuenta_nombre, b_nombre)] = nuevo_monto
+                        
+                        if st.form_submit_button("💾 Guardar Saldos de este Banco"):
+                            for (cuenta_nombre, b_nombre), nuevo_monto in nuevos_valores.items():
+                                st.session_state.datos_cuentas[persona][banco_nombre][cuenta_nombre][b_nombre] = nuevo_monto
+                            st.success(f"Saldos de {banco_nombre} actualizados.")
+                            st.rerun()
 
     render_por_banco("Alexander", col_bancos_1)
     render_por_banco("Mariana", col_bancos_2)
