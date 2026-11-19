@@ -27,11 +27,12 @@ def fmt(n):
     if pd.isna(n) or n == 0: return "$0"
     return f"${n:,.0f}".replace(",", ".")
 
-# --- 1. MEMORIA DE DATOS POR MES (Session State) ---
+# --- 1. MEMORIA DE DATOS (Inicialización) ---
 if 'datos_ingresos' not in st.session_state:
     st.session_state.datos_ingresos = {}
 
 if 'datos_cuentas' not in st.session_state:
+    # CORRECCIÓN DE ESTRUCTURA: Datos de cuentas indexados directamente por persona
     st.session_state.datos_cuentas = {
         "Alexander": {
             "BCI": {
@@ -67,29 +68,36 @@ if 'datos_cuentas' not in st.session_state:
         }
     }
 
-if 'ultimo_mes_index' not in st.session_state:
-    st.session_state.ultimo_mes_index = 22 
+# Memoria del mes: Guardamos la fecha exacta (año y mes) en lugar de solo un índice
+if 'mes_actual' not in st.session_state:
+    st.session_state.mes_actual = date(2026, 11, 19) # Noviembre 2026 por defecto
 
 # --- INTERFAZ GRÁFICA ---
 st.title("🏠 Panel de Finanzas del Hogar")
 
-# Selector de mes con memoria
-meses = pd.date_range("2025-01-19", "2027-12-19", freq="MS").date
-nombres_meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-col_mes, _ = st.columns([1, 2])
-with col_mes:
-    mes_sel = st.selectbox(
-        "Selecciona el mes", 
-        options=meses, 
-        index=st.session_state.ultimo_mes_index, 
-        format_func=lambda d: f"{nombres_meses[d.month-1]} {d.year}"
-    )
-    # CORRECCIÓN AQUÍ: Convertimos a lista antes de buscar el índice
-    st.session_state.ultimo_mes_index = list(meses).index(mes_sel)
+# --- NUEVO SELECTOR DE MES POR BOTONES ---
+col_btn1, col_txt, col_btn2 = st.columns([1, 3, 1])
 
-inicio = mes_sel.replace(day=19) 
+with col_btn1:
+    if st.button("◀ Mes Anterior"):
+        # Restamos un mes a la fecha guardada
+        st.session_state.mes_actual = st.session_state.mes_actual - relativedelta(months=1)
+        st.rerun()
+
+with col_txt:
+    meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+    nombre_mes_actual = f"{meses[st.session_state.mes_actual.month-1]} {st.session_state.mes_actual.year}"
+    st.markdown(f"<h3 style='text-align: center; margin-top: 0;'>{nombre_mes_actual}</h3>", unsafe_allow_html=True)
+
+with col_btn2:
+    if st.button("Mes Siguiente ▶"):
+        # Sumamos un mes a la fecha guardada
+        st.session_state.mes_actual = st.session_state.mes_actual + relativedelta(months=1)
+        st.rerun()
+
+inicio = st.session_state.mes_actual.replace(day=19) 
 fin = (inicio + relativedelta(months=1)).replace(day=18)
-st.info(f"📅 **Ciclo actual:** {inicio.strftime('%d/%m/%Y')} al {fin.strftime('%d/%m/%Y')}")
+st.info(f"📅 **Ciclo actual de trabajo:** {inicio.strftime('%d/%m/%Y')} al {fin.strftime('%d/%m/%Y')}")
 
 # Creamos una "llave" única para este mes (ej. "2026-11")
 mes_key = inicio.strftime("%Y-%m")
@@ -109,7 +117,7 @@ tab1, tab2 = st.tabs(["📊 Resumen (Hoja 1)", "🏦 Cuentas y Bolsillos (Hoja 2
 # PESTAÑA 1: HOJA 1 (RESUMEN)
 # ==========================================
 with tab1:
-    with st.expander(f"✏️ Modificar Ingresos de {nombres_meses[inicio.month-1]} {inicio.year}", expanded=False):
+    with st.expander(f"✏️ Modificar Ingresos de {nombre_mes_actual}", expanded=False):
         with st.form("form_ingresos"):
             col_f1, col_f2 = st.columns(2)
             
@@ -218,6 +226,7 @@ with tab2:
     def render_por_banco(persona, columna):
         with columna:
             st.subheader(f"Bancos de {persona}")
+            # CORRECCIÓN AQUÍ: Buscamos directamente en la llave de la persona
             bancos_persona = st.session_state.datos_cuentas[persona]
             
             for banco_nombre, cuentas in bancos_persona.items():
