@@ -31,7 +31,6 @@ def fmt(n):
 if 'datos_ingresos' not in st.session_state:
     st.session_state.datos_ingresos = {}
 
-# Base de datos de cuentas y bolsillos (Estructura completa)
 if 'datos_cuentas' not in st.session_state:
     st.session_state.datos_cuentas = {
         "Alexander": {
@@ -68,7 +67,6 @@ if 'datos_cuentas' not in st.session_state:
         }
     }
 
-# Memoria del último mes usado (por defecto Noviembre 2026)
 if 'ultimo_mes_index' not in st.session_state:
     st.session_state.ultimo_mes_index = 22 
 
@@ -86,8 +84,8 @@ with col_mes:
         index=st.session_state.ultimo_mes_index, 
         format_func=lambda d: f"{nombres_meses[d.month-1]} {d.year}"
     )
-    # Guardamos el índice seleccionado para la próxima vez
-    st.session_state.ultimo_mes_index = meses.index(mes_sel)
+    # CORRECCIÓN AQUÍ: Convertimos a lista antes de buscar el índice
+    st.session_state.ultimo_mes_index = list(meses).index(mes_sel)
 
 inicio = mes_sel.replace(day=19) 
 fin = (inicio + relativedelta(months=1)).replace(day=18)
@@ -96,7 +94,6 @@ st.info(f"📅 **Ciclo actual:** {inicio.strftime('%d/%m/%Y')} al {fin.strftime(
 # Creamos una "llave" única para este mes (ej. "2026-11")
 mes_key = inicio.strftime("%Y-%m")
 
-# Si es la primera vez que entramos a este mes, inicializamos sus datos base
 if mes_key not in st.session_state.datos_ingresos:
     st.session_state.datos_ingresos[mes_key] = {
         "Alexander": {"Sueldo líquido": 1746582, "Sobresueldo": 0, "Trimestral": 0, "Asesorías": 500000, "Otro": 0},
@@ -224,13 +221,11 @@ with tab2:
             bancos_persona = st.session_state.datos_cuentas[persona]
             
             for banco_nombre, cuentas in bancos_persona.items():
-                # Calculamos el total del banco
                 total_banco = 0
                 for bolsillos in cuentas.values():
                     total_banco += sum(bolsillos.values())
                 
                 with st.expander(f"🏦 **{banco_nombre}** (Total: {fmt(total_banco)})", expanded=False):
-                    # Mostramos las cuentas y sus bolsillos
                     for cuenta_nombre, bolsillos in cuentas.items():
                         st.markdown(f"**{cuenta_nombre}**")
                         for b_nombre, b_monto in bolsillos.items():
@@ -243,7 +238,6 @@ with tab2:
                         nuevos_valores = {}
                         for cuenta_nombre, bolsillos in cuentas.items():
                             for b_nombre, b_monto in bolsillos.items():
-                                # Creamos un campo de entrada por cada bolsillo
                                 nuevo_monto = st.number_input(f"{cuenta_nombre} - {b_nombre}", value=b_monto, step=1000, key=f"input_{persona}_{banco_nombre}_{cuenta_nombre}_{b_nombre}")
                                 nuevos_valores[(cuenta_nombre, b_nombre)] = nuevo_monto
                         
